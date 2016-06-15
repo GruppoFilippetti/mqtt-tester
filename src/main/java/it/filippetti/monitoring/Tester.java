@@ -24,7 +24,6 @@ public class Tester implements MessagesListener {
         mqttManager.addListener(this);
     }
 
-    @Override
     public void messageReceived(long timestamp) {
         long lastPubl = this.lastPublishedMessageTimestamp; // WAS:: mqttManager.getLastPublishedMessageTimestamp();
         long lastRecv = timestamp;                          // WAS:: mqttManager.getLastReceivedMessageTimestamp();
