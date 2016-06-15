@@ -5,6 +5,8 @@ import it.filippetti.monitoring.listeners.MessagesListener;
 import it.filippetti.monitoring.mqtt.MQTTManager;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 /**
@@ -28,20 +30,23 @@ public class Tester implements MessagesListener {
         long lastRecv = timestamp;                          // WAS:: mqttManager.getLastReceivedMessageTimestamp();
         if (lastPubl>=0 && lastRecv>=0) {
             long timePassed = lastRecv - lastPubl;
-            //logger.log(Level.INFO, "Time passed in milliseconds: " + timePassed + " (" + lastPubl + "-->" + lastRecv + ")");
+            logger.log(Level.INFO, "Time passed in milliseconds: " + timePassed + " (" + lastPubl + "-->" + lastRecv + ")");
             System.out.println(timePassed);
         } else {
-            //logger.log(Level.SEVERE, "Sorry, could not determine how much time is passed from message PUBLISH to RECEIVE.");
+            logger.log(Level.SEVERE, "Sorry, could not determine how much time is passed from message PUBLISH to RECEIVE.");
             System.out.println(-1);
             System.exit(-1);
         }
-        try {
-            mqttManager.disconnectClient();
-        } catch (MqttException e) {
-            //logger.log(Level.SEVERE, "MQTT Exception", e);
-            System.out.println(-1);
-            System.exit(-1);
-        }
+
+        // TODO: DISCONNECTION
+//        try {
+//            mqttManager.disconnectClient();
+//        } catch (MqttException e) {
+//            logger.log(Level.SEVERE, "MQTT Exception", e);
+//            System.out.println(-1);
+//            System.exit(-1);
+//        }
+
         System.exit(0);
     }
 
@@ -51,24 +56,29 @@ public class Tester implements MessagesListener {
         // Parse input arguments
         CliManager cli = new CliManager(args);
         boolean parsed = cli.parse();
+
+        // Disable logs unless otherwise specified
+        if (!cli.getLoggingEnabled())
+            LogManager.getLogManager().reset();
+
         if (!parsed) {
-            //logger.log(Level.SEVERE, "Parsing ended unexpectedly.", e);
+            logger.log(Level.SEVERE, "Parsing ended unexpectedly.");
             System.out.println(-1);
             System.exit(-1);
         }
 
         // Create client
-        String mqttURI = cli.getMqttURI(); //(String)options.get("MQTT_URI");
-        String clientName = cli.getClient(); //(String)options.get("MQTT_CLIENT");
+        String mqttURI = cli.getMqttURI();
+        String clientName = cli.getClient();
         boolean created = mqttManager.createClient(mqttURI, clientName);
         if (!created) {
-            //logger.log(Level.SEVERE, "Could not create client", e);
+            logger.log(Level.SEVERE, "Could not create client");
             System.out.println(-1);
             System.exit(-1);
         }
 
         // Build MQTT options for client connection
-        MqttConnectOptions mqttOptions = new MqttConnectOptions();
+        final MqttConnectOptions mqttOptions = new MqttConnectOptions();
         mqttOptions.setCleanSession(cli.getCleanSession());
         mqttOptions.setKeepAliveInterval(cli.getKeepAlive());
         if (cli.getUserName()!=null)
@@ -81,15 +91,27 @@ public class Tester implements MessagesListener {
             // Connect client
             boolean connected = mqttManager.connectClient(mqttOptions);
             if (!connected) {
-                //logger.log(Level.SEVERE, "Could not connect to client", e);
+                logger.log(Level.SEVERE, "Could not connect to client");
                 System.out.println(-1);
                 System.exit(-1);
             }
 
+//            Runtime.getRuntime().addShutdownHook(new Thread() {
+//                @Override
+//                public void run() {
+//                    try {
+//                        System.out.println("Shutdown hook");
+//                        mqttManager.disconnectClient();
+//                    } catch (Throwable e) {
+//                        logger.log(Level.SEVERE, "Unknown Exception", e);
+//                    }
+//                }
+//            });
+
             // Subscribe to fake topic
             boolean subscribed = mqttManager.subscribeToTopic(cli.getTopic());
             if (!subscribed) {
-                //logger.log(Level.SEVERE, "Could not subscribe to topic", e);
+                logger.log(Level.SEVERE, "Could not subscribe to topic");
                 System.out.println(-1);
                 System.exit(-1);
             }
@@ -99,7 +121,7 @@ public class Tester implements MessagesListener {
             this.lastPublishedMessageTimestamp = msgOutTimestamp;
             boolean published = mqttManager.publishOverTopic(cli.getTopic(), cli.getMessage());
             if (!published) {
-                //logger.log(Level.SEVERE, "Could not publish over topic", e);
+                logger.log(Level.SEVERE, "Could not publish over topic");
                 System.out.println(-1);
                 System.exit(-1);
             }
@@ -108,26 +130,22 @@ public class Tester implements MessagesListener {
 
             // Sleep for the maximum amount of milliseconds we can wait for a message to arrive, then disconnect
             Thread.sleep(cli.getWaiting());
+            logger.log(Level.INFO, "Client has not received a message within " + cli.getWaiting() + " milliseconds. Too much time has passed.");
             mqttManager.disconnectClient();
 
-            //logger.log(Level.INFO, "Client has not received a message within " + maxWaitingMillis + " milliseconds. Too much time has passed.");
-            System.out.println(-1);
-            System.exit(-1);
-
         } catch (MqttException e) {
-            //logger.log(Level.SEVERE, "MQTT Exception", e);
+            logger.log(Level.SEVERE, "MQTT Exception", e);
             System.out.println(-1);
             System.exit(-1);
         } catch (InterruptedException e) {
-            //logger.log(Level.SEVERE, "Interrupted.", e);
+            logger.log(Level.SEVERE, "Interrupted.", e);
             System.out.println(-1);
             System.exit(-1);
         } catch (Exception e) {
-            //logger.log(Level.SEVERE, "Unknown error.", e);
+            logger.log(Level.SEVERE, "Unknown error.", e);
             System.out.println(-1);
             System.exit(-1);
         }
-
     }
 
 

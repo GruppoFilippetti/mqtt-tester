@@ -1,21 +1,20 @@
 package it.filippetti.monitoring.commands;
 
-import java.text.NumberFormat;
-import java.util.HashMap;
-import java.util.Map;
+
 import java.util.UUID;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.cli.*;
 
 
 public class CliManager {
-    private static final Logger logger = Logger.getLogger(CliManager.class.getName());
     private String[] cliArgs = null;
     private Options cliOptions = new Options();
 
     // Command line args
     private static String[]         MANDATORY_PARAMS = {"h"};
+
+    // Logging
+    private static final boolean    LOGS_ENABLED = false;
 
     // MQTT
     private static final String     PROTOCOL = "tcp";
@@ -28,6 +27,7 @@ public class CliManager {
 
 
     // Options
+    private boolean loggingEnabled = LOGS_ENABLED;
     private String  mqttUri;
     private String  mqttClient;
     private boolean mqttCleanSession;
@@ -51,17 +51,17 @@ public class CliManager {
         cliOptions.addOption("t", "topic", true, "MQTT topic to publish/subscribe to. Default is " + TOPIC + ".");
         cliOptions.addOption("m", "message", true, "MQTT message to be published. If spaces are included, message should be included in double quotes. Default is " + MESSAGE + ".");
         cliOptions.addOption("w", "wait", true, "Maximum amount of milliseconds to wait for the message to arrive. Default is " + MAX_WAITING + ".");
+        cliOptions.addOption("l", "logging", false, "Enable logging. Default is " + LOGS_ENABLED + ".");
     }
 
 
     public boolean parse() {
 
-        CommandLineParser parser = new DefaultParser(); /// WAS: new BasicParser(); (deprecated)
+        CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
         try {
             cmd = parser.parse(cliOptions, cliArgs);
         } catch (ParseException e) {
-            //logger.log(Level.SEVERE, "Failed to parse command line properties", e.getMessage());
             help();
             return false;
         }
@@ -86,10 +86,8 @@ public class CliManager {
         try {
             this.mqttKeepAlive = cmd.hasOption("k") ? Integer.parseInt(cmd.getOptionValue("k")) : KEEPALIVE;
         } catch (NumberFormatException e) {
-            //logger.log(Level.SEVERE, "Failed to parse Keepalive value", e.getMessage());
             return false;
         }
-
         if (cmd.hasOption("u"))
             this.mqttUserName = cmd.getOptionValue("u");
         if (cmd.hasOption("P"))
@@ -99,9 +97,10 @@ public class CliManager {
         try {
             this.mqttWait = cmd.hasOption("w") ? Long.parseLong(cmd.getOptionValue("w")) : MAX_WAITING;
         } catch (NumberFormatException e) {
-            //logger.log(Level.SEVERE, "Failed to parse Waiting value", e.getMessage());
             return false;
         }
+        if (cmd.hasOption("l"))
+            this.loggingEnabled = true;
 
         return true;
     }
@@ -114,8 +113,7 @@ public class CliManager {
     private boolean checkMandatoryParams(CommandLine cmd, String[] params) {
         for (String p : params) {
             if (!cmd.hasOption(p)) {
-                //logger.log(Level.SEVERE, "Missing mandatory parameter '" + cliOptions.getOption(p).getLongOpt() + "'.");
-                System.out.println("Missing mandatory parameter '" + cliOptions.getOption(p).getLongOpt() + "'.");
+                //System.out.println("Missing mandatory parameter '" + cliOptions.getOption(p).getLongOpt() + "'.");
                 return false;
             }
         }
@@ -149,5 +147,8 @@ public class CliManager {
     }
     public long getWaiting() {
         return mqttWait;
+    }
+    public boolean getLoggingEnabled() {
+        return loggingEnabled;
     }
 }
