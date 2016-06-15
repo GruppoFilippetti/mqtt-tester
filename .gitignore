@@ -1,3 +1,5 @@
 .idea
 target/
 TESTER_*
+*.iml
+dependency-reduced-pom.xml
