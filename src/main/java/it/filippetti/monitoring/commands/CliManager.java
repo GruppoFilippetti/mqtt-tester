@@ -1,9 +1,9 @@
 package it.filippetti.monitoring.commands;
 
 
-import java.util.UUID;
-import java.util.logging.Logger;
 import org.apache.commons.cli.*;
+
+import java.util.UUID;
 
 
 public class CliManager {
@@ -20,7 +20,7 @@ public class CliManager {
     private static final String     PROTOCOL = "tcp";
     private static final String     PORT = "1883";
     private static final boolean    CLEAN_SESSION = true;
-    private static final int        KEEPALIVE = 30;
+    private static final int        KEEPALIVE = 2;
     private static final String     TOPIC = "check";
     private static final String     MESSAGE = "FAKE_MESSAGE";
     private static final long       MAX_WAITING = 2000; // Maximum amount of milliseconds we can wait for a message to arrive
