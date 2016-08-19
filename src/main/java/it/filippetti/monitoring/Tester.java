@@ -5,6 +5,7 @@ import it.filippetti.monitoring.listeners.MessagesListener;
 import it.filippetti.monitoring.mqtt.MQTTManager;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 
+import java.util.concurrent.*;
 import java.util.logging.LogManager;
 
 /**
@@ -16,6 +17,7 @@ public class Tester implements MessagesListener {
     private MQTTManager mqttManager;
     private boolean loggingEnabled = false;
 
+    private long duration;
 
     public Tester() {
         mqttManager = new MQTTManager();
@@ -26,15 +28,18 @@ public class Tester implements MessagesListener {
         long lastPubl = this.lastPublishedMessageTimestamp; // WAS:: mqttManager.getLastPublishedMessageTimestamp();
         long lastRecv = timestamp;                          // WAS:: mqttManager.getLastReceivedMessageTimestamp();
         if (lastPubl>=0 && lastRecv>=0) {
-            long timePassed = lastRecv - lastPubl;
-            System.out.println(timePassed);
+            duration = lastRecv - lastPubl;
+//            System.out.println(duration);
         } else {
-            System.out.println(-1);
-            System.exit(-1);
+            fail();
+            duration = -1;
         }
-        System.exit(0);
+//        System.exit(0);
     }
 
+    public long getDuration() {
+        return duration;
+    }
 
     public void makeTest(String[] args) {
         try {
@@ -83,19 +88,46 @@ public class Tester implements MessagesListener {
             Thread.sleep(cli.getWaiting());
             mqttManager.disconnectClient();
 
+
         }
         catch (Throwable e) {
             if(loggingEnabled) {
                 e.printStackTrace();
             }
-            System.out.println(-1);
-            System.exit(-1);
+            duration = -1;
+//            fail();
         }
     }
 
 
     public static void main(String[] args) {
-        new Tester().makeTest(args);
+
+        ExecutorService executor = Executors.newCachedThreadPool();
+        Callable<Tester> task = new Callable<Tester>() {
+            public Tester call() {
+                Tester tester = new Tester();
+                tester.makeTest(args);
+                return tester;
+            }
+        };
+        Future<Tester> future = executor.submit(task);
+        long duration = -1;
+        try {
+            Tester result = future.get(5, TimeUnit.SECONDS);
+            duration = result.getDuration();
+        } catch (TimeoutException | InterruptedException | ExecutionException ex) {
+            // handle the timeout
+            fail();
+        } finally {
+            future.cancel(true); // may or may not desire thisù
+            System.out.println(duration);
+            System.exit(0);
+        }
     }
 
+
+    private static void fail() {
+        System.out.println(-1);
+        System.exit(-1);
+    }
 }
